@@ -3,18 +3,21 @@ Reminder Bot - Clone of @yastabot
 A "fire and forget" Telegram reminder bot with natural language parsing.
 
 Setup:
-  pip install "python-telegram-bot>=20.0" python-dateutil pytz APScheduler
+  pip install python-telegram-bot==20.7 python-dateutil pytz APScheduler
 
-Run (Windows PowerShell):
-  $env:BOT_TOKEN="your_token_here"; python bot.py
+Run:
+  BOT_TOKEN=your_token_here python bot.py
 """
 
 import os
+import re
 import logging
+import asyncio
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytz
+from dateutil.relativedelta import relativedelta
 
 from telegram import Update
 from telegram.ext import (
@@ -40,7 +43,7 @@ from db import (
     get_all_pending_reminders,
     mark_reminder_sent,
 )
-from reminder_parser import parse_reminder_command
+from parser import parse_reminder_command
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -347,29 +350,10 @@ async def handle_plain_message(update: Update, context: ContextTypes.DEFAULT_TYP
 # MAIN
 # ─────────────────────────────────────────────
 
-async def post_init(app: Application) -> None:
-    """Called after the bot is initialized — safe place to start scheduler."""
-    scheduler.start()
-    restore_scheduled_reminders(app)
-    logger.info("Scheduler started and reminders restored.")
-
-
-async def post_shutdown(app: Application) -> None:
-    """Called on shutdown — cleanly stop scheduler."""
-    if scheduler.running:
-        scheduler.shutdown(wait=False)
-
-
 def main():
     init_db()
 
-    app = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .post_init(post_init)
-        .post_shutdown(post_shutdown)
-        .build()
-    )
+    app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
@@ -379,6 +363,9 @@ def main():
     app.add_handler(CommandHandler("delete", cmd_delete))
     app.add_handler(CommandHandler("remindme", cmd_remindme))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_plain_message))
+
+    scheduler.start()
+    restore_scheduled_reminders(app)
 
     logger.info("Bot started. Polling...")
     app.run_polling(drop_pending_updates=True)
