@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  reminder_bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DB_PATH=/data/reminders.db
+    volumes:
+      - bot_data:/data
+
+volumes:
+  bot_data:
