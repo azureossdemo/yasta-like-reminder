@@ -8,8 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV BOT_TOKEN=""
-ENV DB_PATH="/data/reminders.db"
-
-VOLUME ["/data"]
+ENV DB_PATH="/app/reminders.db"
 
 CMD ["python", "bot.py"]
